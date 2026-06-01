@@ -683,4 +683,7 @@ CamelX Dashboard Overview
 
 # ── Run Server ───────────────────────────────────────────────
 if __name__ == "__main__":
-    mcp.run()
+    import uvicorn
+    app = mcp.get_asgi_app()
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
