@@ -687,6 +687,6 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
 
     async def main():
-        await mcp.run_sse_async(host="0.0.0.0", port=port)
+        await mcp.run_http_async(host="0.0.0.0", port=port)
 
     asyncio.run(main())
