@@ -683,6 +683,10 @@ CamelX Dashboard Overview
 
 # ── Run Server ───────────────────────────────────────────────
 if __name__ == "__main__":
-    import uvicorn
+    import asyncio
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(mcp.http_app(), host="0.0.0.0", port=port)
+
+    async def main():
+        await mcp.run_http_async(host="0.0.0.0", port=port)
+
+    asyncio.run(main())
