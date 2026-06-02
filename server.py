@@ -687,8 +687,8 @@ if __name__ == "__main__":
 
     app = mcp.streamable_http_app()
 
-    print("APP TYPE:", type(app))
-    print("APP:", app)
+    for route in app.routes:
+        print("ROUTE:", route.path)
 
     uvicorn.run(
         app,
