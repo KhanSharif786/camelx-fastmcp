@@ -41,8 +41,6 @@ def format_rows(rows: list[dict]) -> str:
 
 # ── MCP Server ───────────────────────────────────────────────
 mcp = FastMCP("CamelX Analytics Intelligence")
-print("FastMCP Object Methods:")
-print(dir(mcp))
 
 # ════════════════════════════════════════════════════════════
 # TOOL 1 — CAMEL MANAGEMENT
