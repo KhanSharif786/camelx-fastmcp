@@ -3,6 +3,9 @@ import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.server import TransportSecuritySettings
+
 
 load_dotenv()
 
@@ -159,7 +162,10 @@ Always use clean tables or numbered lists for data results.
 For alerts: clearly label severity (Critical / High / Medium / Low).
 For rankings: always number them (1, 2, 3...).
 Support both English and Arabic camel names when searching.
-"""
+""",
+transport_security=TransportSecuritySettings(
+    allowed_hosts=["camelx-api-v2.onrender.com"]
+)
 )
 
 # ════════════════════════════════════════════════════════════
@@ -805,7 +811,7 @@ if __name__ == "__main__":
     import os
     import uvicorn
 
-    app = mcp.streamable_http_app(allowed_hosts=["*"])
+    app = mcp.streamable_http_app()
 
     uvicorn.run(
         app,
