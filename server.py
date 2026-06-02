@@ -684,5 +684,6 @@ CamelX Dashboard Overview
 if __name__ == "__main__":
     import inspect
 
-    print("run_streamable_http_async signature:")
-    print(inspect.signature(mcp.run_streamable_http_async))
+    print("SIGNATURE =", inspect.signature(mcp.run_streamable_http_async))
+
+    raise Exception("STOP HERE")
