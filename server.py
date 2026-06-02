@@ -804,6 +804,10 @@ CamelX Dashboard Overview
 if __name__ == "__main__":
     import os
     import uvicorn
+    import inspect
+
+    print("SIGNATURE:")
+    print(inspect.signature(mcp.streamable_http_app))
 
     app = mcp.streamable_http_app()
 
