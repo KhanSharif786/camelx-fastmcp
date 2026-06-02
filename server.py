@@ -682,8 +682,13 @@ CamelX Dashboard Overview
 
 # ── Run Server ───────────────────────────────────────────────
 if __name__ == "__main__":
-    import inspect
+    import os
+    import uvicorn
 
-    print("SIGNATURE =", inspect.signature(mcp.run_streamable_http_async))
+    app = mcp.streamable_http_app()
 
-    raise Exception("STOP HERE")
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000))
+    )
