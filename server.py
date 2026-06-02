@@ -704,7 +704,6 @@ def get_diet_info(
                     m.calories, m.protein, m.carbs, m.fats, m.water
                 FROM meals m
                 JOIN diet_plans dp ON dp.id = m.diet_plan_id
-                WHERE dp.is_active = true
                 LIMIT 20"""
             )
         else:
