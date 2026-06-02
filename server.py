@@ -805,7 +805,7 @@ if __name__ == "__main__":
     import os
     import uvicorn
 
-    app = mcp.streamable_http_app()
+    app = mcp.streamable_http_app(allowed_hosts=["*"])
 
     uvicorn.run(
         app,
