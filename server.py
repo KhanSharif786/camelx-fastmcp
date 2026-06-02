@@ -682,13 +682,7 @@ CamelX Dashboard Overview
 
 # ── Run Server ───────────────────────────────────────────────
 if __name__ == "__main__":
-    import asyncio
-    import os
+    import inspect
 
-    async def main():
-        await mcp.run_streamable_http_async(
-            host="0.0.0.0",
-            port=int(os.environ.get("PORT", 10000))
-        )
-
-    asyncio.run(main())
+    print("run_streamable_http_async signature:")
+    print(inspect.signature(mcp.run_streamable_http_async))
