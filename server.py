@@ -780,9 +780,9 @@ def get_dashboard_overview() -> str:
         devices     = run_query("SELECT COUNT(*) as total FROM iot_devices")[0]
         alerts      = run_query("SELECT COUNT(*) as total FROM alerts WHERE status = 'active'")[0]
         upcoming    = run_query("SELECT COUNT(*) as total FROM races WHERE race_date > NOW()")[0]
-        users       = run_query("SELECT COUNT(*) as total FROM users WHERE is_active = true")[0]
+        users       = run_query("SELECT COUNT(*) as total FROM users")[0]
         anomalies   = run_query("SELECT COUNT(*) as total FROM anomaly_detections WHERE resolved = false")[0]
-        diet_plans  = run_query("SELECT COUNT(*) as total FROM diet_plans WHERE is_active = true")[0]
+        diet_plans  = run_query("SELECT COUNT(*) as total FROM diet_plans")[0]
         training    = run_query("SELECT COUNT(*) as total FROM training_logs")[0]
         vendors     = run_query("SELECT COUNT(*) as total FROM vendors")[0]
 
