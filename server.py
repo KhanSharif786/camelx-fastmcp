@@ -695,7 +695,7 @@ def get_diet_info(
                     COUNT(*) as active_diet_plans,
                     ROUND(AVG(total_calories)::numeric,0) as avg_daily_calories,
                     SUM(total_calories) as total_calories_all_plans
-                FROM diet_plans WHERE is_active = true"""
+                FROM diet_plans"""
             )
 
         elif query_type == "meals":
