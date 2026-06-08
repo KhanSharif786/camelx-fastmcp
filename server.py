@@ -360,33 +360,16 @@ def get_health_metrics(
 ) -> str:
     """
     Get health and vitals data for camels from IoT sensors.
-    Use for questions about heart rate, SpO2, temperature,
-    stress, fatigue, blood pressure, or overall health summary.
 
-    IMPORTANT — Time Period Handling:
-    - If user asks general health question WITHOUT specifying time → use hours=0 (all data)
-    - If user specifies time period, convert to hours:
-        1 day   = 24 hours
-        7 days  = 168 hours
-        15 days = 360 hours
-        1 month = 720 hours
-        3 months= 2160 hours
-        6 months= 4320 hours
-        all time= 0 (no filter)
+    IMPORTANT — Time Period:
+    - hours=0 means ALL available data (default)
+    - 1 day=24, 7 days=168, 15 days=360, 1 month=720, 3 months=2160, 6 months=4320
 
     Args:
-        metric_type: Type of health data. Options:
-            "summary"        — all vitals averaged
-            "heart_rate"     — heart rate stats
-            "spo2"           — blood oxygen levels
-            "temperature"    — body temperature
-            "stress"         — stress levels
-            "blood_pressure" — systolic and diastolic BP
-            "fatigue"        — fatigue levels
+        metric_type: Options: summary, heart_rate, spo2, temperature, stress, blood_pressure, fatigue
         hours: Hours to look back. 0 = all available data (default)
     """
     try:
-        # Build WHERE clause based on hours
         if hours and hours > 0:
             time_filter = f"AND recorded_at > NOW() - INTERVAL '{hours} hours'"
             period_label = f"Last {hours} hours"
@@ -416,7 +399,8 @@ def get_health_metrics(
                     ROUND(MAX(heart_rate)::numeric,1) as max,
                     COUNT(*) as readings
                 FROM health_metrics
-                WHERE heart_rate IS NOT NULL {time_filter}"""
+                WHERE heart_rate IS NOT NULL
+                {time_filter}"""
             )
 
         elif metric_type == "spo2":
@@ -426,7 +410,8 @@ def get_health_metrics(
                     ROUND(MIN(spo2)::numeric,1) as min_spo2,
                     ROUND(MAX(spo2)::numeric,1) as max_spo2
                 FROM health_metrics
-                WHERE spo2 IS NOT NULL {time_filter}"""
+                WHERE spo2 IS NOT NULL
+                {time_filter}"""
             )
 
         elif metric_type == "temperature":
@@ -436,7 +421,8 @@ def get_health_metrics(
                     ROUND(MIN(temperature)::numeric,1) as min_temp,
                     ROUND(MAX(temperature)::numeric,1) as max_temp
                 FROM health_metrics
-                WHERE temperature IS NOT NULL {time_filter}"""
+                WHERE temperature IS NOT NULL
+                {time_filter}"""
             )
 
         elif metric_type == "stress":
@@ -446,7 +432,8 @@ def get_health_metrics(
                     ROUND(MAX(stress)::numeric,2) as max_stress,
                     COUNT(CASE WHEN stress > 0.7 THEN 1 END) as high_stress_count
                 FROM health_metrics
-                WHERE stress IS NOT NULL {time_filter}"""
+                WHERE stress IS NOT NULL
+                {time_filter}"""
             )
 
         elif metric_type == "blood_pressure":
@@ -456,7 +443,8 @@ def get_health_metrics(
                     ROUND(AVG(blood_pressure_dbp)::numeric,1) as avg_diastolic,
                     ROUND(MAX(blood_pressure_sbp)::numeric,1) as max_systolic
                 FROM health_metrics
-                WHERE blood_pressure_sbp IS NOT NULL {time_filter}"""
+                WHERE blood_pressure_sbp IS NOT NULL
+                {time_filter}"""
             )
 
         elif metric_type == "fatigue":
@@ -466,7 +454,8 @@ def get_health_metrics(
                     ROUND(MAX(fatigue)::numeric,2) as max_fatigue,
                     COUNT(CASE WHEN fatigue > 0.7 THEN 1 END) as high_fatigue_count
                 FROM health_metrics
-                WHERE fatigue IS NOT NULL {time_filter}"""
+                WHERE fatigue IS NOT NULL
+                {time_filter}"""
             )
         else:
             return f"Unknown metric_type: {metric_type}"
@@ -489,17 +478,12 @@ def get_health_metrics(
 @mcp.tool()
 def get_race_data(
     query_type: str = "results",
-    limit: int = 20,
-    days: int = 0
+    limit: int = 20
 ) -> str:
     """
     Get race information from CamelX database.
     Use for questions about races — upcoming races, past results,
     winners, prize pools, race counts, or race summaries.
-
-    IMPORTANT — Time Period Handling:
-    - days=0 means all available data (default)
-    - Convert: 1 month=30, 3 months=90, 6 months=180, 1 year=365
 
     Args:
         query_type: Type of race data. Options:
@@ -508,16 +492,8 @@ def get_race_data(
             "winners"   — camels with most wins
             "summary"   — total races and prize pool stats
         limit: Number of records to return (default 20)
-        days: Days to look back for results/winners. 0 = all data (default)
     """
     try:
-        if days and days > 0:
-            race_time_filter = f"AND r.race_date > NOW() - INTERVAL '{days} days'"
-            period_label = f"Last {days} days"
-        else:
-            race_time_filter = ""
-            period_label = "All Time"
-
         if query_type == "upcoming":
             rows, elapsed = run_query(
                 "SELECT name, location, race_date, distance, "
@@ -528,27 +504,25 @@ def get_race_data(
 
         elif query_type == "results":
             rows, elapsed = run_query(
-                f"""SELECT r.name as race_name, r.location, r.race_date,
+                """SELECT r.name as race_name, r.location, r.race_date,
                     rr.position, c.name as camel_name,
                     rr.finish_time, rr.average_speed, rr.prize_won
                 FROM race_results rr
                 JOIN camels c ON c.id = rr.camel_id
                 JOIN races r ON r.id = rr.race_id
-                WHERE 1=1 {race_time_filter}
                 ORDER BY r.race_date DESC, rr.position ASC
                 LIMIT %s""", [limit]
             )
 
         elif query_type == "winners":
             rows, elapsed = run_query(
-                f"""SELECT c.name as camel_name,
+                """SELECT c.name as camel_name,
                     COUNT(*) as total_wins,
                     ROUND(AVG(rr.average_speed)::numeric,1) as avg_winning_speed,
                     SUM(rr.prize_won) as total_prize_won
                 FROM race_results rr
                 JOIN camels c ON c.id = rr.camel_id
-                JOIN races r ON r.id = rr.race_id
-                WHERE rr.position = 1 {race_time_filter}
+                WHERE rr.position = 1
                 GROUP BY c.name
                 ORDER BY total_wins DESC
                 LIMIT %s""", [limit]
@@ -570,9 +544,8 @@ def get_race_data(
         lang = "ar" if is_arabic(query_type) else "en"
         ref = make_reference("get_race_data", ["races", "race_results", "camels"], elapsed, lang)
         if lang == "ar":
-            period_ar = "كل الوقت" if days == 0 else f"آخر {days} يوم"
-            return f"بيانات السباق — {query_type.title()} ({period_ar})\n{'═'*80}\n{format_rows(rows)}{ref}"
-        return f"Race Data — {query_type.title()} ({period_label})\n{'═'*80}\n{format_rows(rows)}{ref}"
+            return f"بيانات السباق — {query_type.title()}\n{'═'*80}\n{format_rows(rows)}{ref}"
+        return f"Race Data — {query_type.title()}\n{'═'*80}\n{format_rows(rows)}{ref}"
 
     except Exception as e:
         return f"Query failed: {str(e)}"
@@ -594,71 +567,107 @@ def get_training_data(
 
     IMPORTANT — Time Period Handling:
     - days=0 means all available data (default)
-    - Convert user time requests: 1 week=7, 1 month=30, 3 months=90, 6 months=180
+    - Convert: 1 week=7, 1 month=30, 3 months=90, 6 months=180
+
+    NOTE: training_events table has the actual scheduled sessions (50 records).
+    training_logs has per-camel performance logs linked to sessions.
 
     Args:
         query_type: Type of training data. Options:
-            "summary"    — overall training stats
-            "top_camels" — camels with best training ratings
-            "recent"     — recent training sessions
+            "summary"    — overall training stats from both tables
+            "top_camels" — camels with best training performance
+            "recent"     — recent training events
+            "events"     — list all training events
         limit: Number of records (default 10)
         days: Days to look back. 0 = all available data (default)
     """
     try:
         if days and days > 0:
-            time_filter_tr = f"AND tl.recorded_at > NOW() - INTERVAL '{days} days'"
-            time_filter_basic = f"WHERE recorded_at > NOW() - INTERVAL '{days} days'"
+            te_filter = f"AND te.scheduled_date > NOW() - INTERVAL '{days} days'"
+            tl_filter = f"AND tl.recorded_at > NOW() - INTERVAL '{days} days'"
+            tl_basic  = f"WHERE recorded_at > NOW() - INTERVAL '{days} days'"
+            te_basic  = f"WHERE scheduled_date > NOW() - INTERVAL '{days} days'"
             period_label = f"Last {days} days"
         else:
-            time_filter_tr = ""
-            time_filter_basic = ""
+            te_filter = ""
+            tl_filter = ""
+            tl_basic  = ""
+            te_basic  = ""
             period_label = "All Time"
 
         if query_type == "summary":
-            rows, elapsed = run_query(
+            # Events summary from training_events
+            ev_rows, ev_elapsed = run_query(
                 f"""SELECT
-                    COUNT(*) as total_sessions,
-                    ROUND(AVG(actual_distance)::numeric,1) as avg_distance_km,
+                    COUNT(*) as total_training_events,
+                    COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+                    COUNT(CASE WHEN status = 'scheduled' THEN 1 END) as scheduled,
+                    ROUND(AVG(distance)::numeric,1) as avg_distance_km,
+                    ROUND(AVG(duration)::numeric,0) as avg_duration_min
+                FROM training_events
+                {te_basic}"""
+            )
+            # Performance logs from training_logs
+            lg_rows, elapsed = run_query(
+                f"""SELECT
+                    COUNT(*) as total_performance_logs,
+                    ROUND(AVG(actual_distance)::numeric,1) as avg_actual_distance_km,
                     ROUND(AVG(average_speed)::numeric,1) as avg_speed_kmh,
-                    ROUND(AVG(max_speed)::numeric,1) as avg_max_speed,
                     SUM(calories_burned) as total_calories_burned,
-                    ROUND(AVG(performance_rating)::numeric,1) as avg_performance_rating
+                    ROUND(AVG(CAST(performance_rating AS numeric)),1) as avg_performance_rating
                 FROM training_logs
-                {time_filter_basic}"""
+                {tl_basic}"""
+            )
+            ref = make_reference("get_training_data", ["training_events", "training_logs"], elapsed)
+            return (
+                f"Training Summary ({period_label})\n{'═'*80}\n"
+                f"Training Events:\n{format_rows(ev_rows)}\n\n"
+                f"Performance Logs:\n{format_rows(lg_rows)}{ref}"
             )
 
         elif query_type == "top_camels":
             rows, elapsed = run_query(
                 f"""SELECT c.name as camel_name,
-                    COUNT(tl.id) as total_sessions,
-                    ROUND(AVG(tl.average_speed)::numeric,1) as avg_speed,
+                    COUNT(tl.id) as log_entries,
+                    ROUND(AVG(tl.average_speed)::numeric,1) as avg_speed_kmh,
                     ROUND(SUM(tl.actual_distance)::numeric,1) as total_distance_km,
                     SUM(tl.calories_burned) as total_calories,
-                    ROUND(AVG(tl.performance_rating)::numeric,1) as avg_rating
+                    ROUND(AVG(CAST(tl.performance_rating AS numeric)),1) as avg_rating
                 FROM training_logs tl
                 JOIN camels c ON c.id = tl.camel_id
-                WHERE 1=1 {time_filter_tr}
+                WHERE 1=1 {tl_filter}
                 GROUP BY c.name
-                ORDER BY avg_rating DESC
+                ORDER BY avg_rating DESC NULLS LAST
                 LIMIT %s""", [limit]
             )
 
         elif query_type == "recent":
             rows, elapsed = run_query(
-                f"""SELECT c.name as camel_name,
-                    tl.actual_distance, tl.average_speed,
-                    tl.calories_burned, tl.performance_rating,
-                    tl.recorded_at
-                FROM training_logs tl
-                JOIN camels c ON c.id = tl.camel_id
-                WHERE 1=1 {time_filter_tr}
-                ORDER BY tl.recorded_at DESC
+                f"""SELECT
+                    te.title, te.session_type, te.status,
+                    te.intensity, te.distance, te.duration,
+                    te.scheduled_date, te.completed_at
+                FROM training_events te
+                WHERE 1=1 {te_filter}
+                ORDER BY te.scheduled_date DESC
+                LIMIT %s""", [limit]
+            )
+
+        elif query_type == "events":
+            rows, elapsed = run_query(
+                f"""SELECT
+                    te.title, te.session_type, te.status,
+                    te.intensity, te.distance, te.duration,
+                    te.scheduled_date
+                FROM training_events te
+                WHERE 1=1 {te_filter}
+                ORDER BY te.scheduled_date DESC
                 LIMIT %s""", [limit]
             )
         else:
             return f"Unknown query_type: {query_type}"
 
-        ref = make_reference("get_training_data", ["training_logs", "training_sessions", "camels"], elapsed)
+        ref = make_reference("get_training_data", ["training_events", "training_logs", "camels"], elapsed)
         label = query_type.replace('_',' ').title()
         return f"Training Data — {label} ({period_label})\n{'═'*80}\n{format_rows(rows)}{ref}"
 
@@ -672,17 +681,12 @@ def get_training_data(
 @mcp.tool()
 def get_alerts_and_anomalies(
     query_type: str = "active_alerts",
-    limit: int = 10,
-    days: int = 0
+    limit: int = 10
 ) -> str:
     """
     Get alerts and anomaly detection data from CamelX.
     Use for questions about active alerts, critical issues,
     recent alerts, or unresolved anomalies detected by AI.
-
-    IMPORTANT — Time Period Handling:
-    - days=0 means all available data (default)
-    - Convert: 1 week=7, 1 month=30, 3 months=90
 
     Args:
         query_type: Type of alert data. Options:
@@ -691,30 +695,22 @@ def get_alerts_and_anomalies(
             "recent_alerts"    — latest 10 alerts of any status
             "anomalies"        — unresolved AI-detected anomalies
         limit: Number of records (default 10)
-        days: Days to look back. 0 = all data (default)
     """
     try:
         ref_tables = ["alerts", "camels", "anomaly_detections"]
         import time as _time
 
-        if days and days > 0:
-            alert_time_filter = f"AND created_at > NOW() - INTERVAL '{days} days'"
-            period_label = f"Last {days} days"
-        else:
-            alert_time_filter = ""
-            period_label = "All Time"
-
         if query_type == "active_alerts":
             t0 = _time.time()
-            total, _ = run_query(f"SELECT COUNT(*) as total FROM alerts WHERE status = 'active' {alert_time_filter}")
+            total, _ = run_query("SELECT COUNT(*) as total FROM alerts WHERE status = 'active'")
             by_severity, _ = run_query(
-                f"SELECT severity, COUNT(*) as count FROM alerts "
-                f"WHERE status = 'active' {alert_time_filter} GROUP BY severity ORDER BY count DESC"
+                "SELECT severity, COUNT(*) as count FROM alerts "
+                "WHERE status = 'active' GROUP BY severity ORDER BY count DESC"
             )
             elapsed = round((_time.time() - t0) * 1000, 1)
             ref = make_reference("get_alerts_and_anomalies", ref_tables, elapsed)
             return (
-                f"Active Alerts Summary ({period_label})\n{'═'*80}\n"
+                f"Active Alerts Summary\n{'═'*80}\n"
                 f"Total Active: {total[0]['total']}\n\n"
                 f"By Severity:\n{format_rows(by_severity)}{ref}"
             )
@@ -733,11 +729,10 @@ def get_alerts_and_anomalies(
 
         elif query_type == "recent_alerts":
             rows, elapsed = run_query(
-                f"""SELECT a.title, a.severity, a.alert_type,
+                """SELECT a.title, a.severity, a.alert_type,
                     a.status, a.created_at, c.name as camel_name
                 FROM alerts a
                 LEFT JOIN camels c ON c.id = a.camel_id
-                WHERE 1=1 {alert_time_filter}
                 ORDER BY a.created_at DESC
                 LIMIT %s""", [limit]
             )
@@ -764,7 +759,7 @@ def get_alerts_and_anomalies(
 
         ref = make_reference("get_alerts_and_anomalies", ref_tables, elapsed)
         label = query_type.replace('_',' ').title()
-        return f"Alerts — {label} ({period_label})\n{'═'*80}\n{format_rows(rows)}{ref}"
+        return f"Alerts — {label}\n{'═'*80}\n{format_rows(rows)}{ref}"
 
     except Exception as e:
         return f"Query failed: {str(e)}"
@@ -851,33 +846,65 @@ def get_diet_info(
     Use for questions about diet plans, meals, calorie targets,
     nutrition schedules, or feeding information.
 
+    NOTE: diet_plans uses 'status' column (values: active/inactive).
+    diet_plan_camels links diet plans to camels.
+
     Args:
         query_type: Type of diet data. Options:
-            "summary"  — active plans count and calorie stats
-            "meals"    — recent meal details
+            "summary"      — all diet plans count and calorie stats
+            "active_plans" — only active status plans
+            "meals"        — recent meal details
+            "camel_diets"  — which camels have diet plans assigned
     """
     try:
         if query_type == "summary":
             rows, elapsed = run_query(
                 """SELECT
-                    COUNT(*) as active_diet_plans,
+                    COUNT(*) as total_diet_plans,
+                    COUNT(CASE WHEN status = 'active' THEN 1 END) as active_plans,
+                    COUNT(CASE WHEN status != 'active' THEN 1 END) as inactive_plans,
                     ROUND(AVG(total_calories)::numeric,0) as avg_daily_calories,
                     SUM(total_calories) as total_calories_all_plans
                 FROM diet_plans"""
             )
 
+        elif query_type == "active_plans":
+            rows, elapsed = run_query(
+                """SELECT dp.name, dp.status, dp.total_calories,
+                    dp.description, dp.created_at
+                FROM diet_plans dp
+                WHERE dp.status = 'active'
+                ORDER BY dp.created_at DESC
+                LIMIT 20"""
+            )
+
         elif query_type == "meals":
             rows, elapsed = run_query(
                 """SELECT m.meal_type, m.scheduled_time,
-                    m.calories, m.protein, m.carbs, m.fats, m.water
+                    m.calories, m.protein, m.carbs, m.fats, m.water,
+                    dp.name as diet_plan_name, dp.status
                 FROM meals m
                 JOIN diet_plans dp ON dp.id = m.diet_plan_id
+                ORDER BY m.created_at DESC
+                LIMIT 20"""
+            )
+
+        elif query_type == "camel_diets":
+            rows, elapsed = run_query(
+                """SELECT
+                    c.name as camel_name, c.breed,
+                    dp.name as diet_plan, dp.status,
+                    dp.total_calories, dpc.assigned_at
+                FROM diet_plan_camels dpc
+                JOIN camels c ON c.id = dpc.camel_id
+                JOIN diet_plans dp ON dp.id = dpc.diet_plan_id
+                ORDER BY dpc.assigned_at DESC
                 LIMIT 20"""
             )
         else:
             return f"Unknown query_type: {query_type}"
 
-        ref = make_reference("get_diet_info", ["diet_plans", "meals"], elapsed)
+        ref = make_reference("get_diet_info", ["diet_plans", "meals", "diet_plan_camels"], elapsed)
         return f"Diet & Nutrition — {query_type.title()}\n{'═'*80}\n{format_rows(rows)}{ref}"
 
     except Exception as e:
@@ -917,8 +944,12 @@ def get_vendor_and_user_info(
 
         elif query_type == "users_by_role":
             rows, elapsed = run_query(
-                "SELECT role, COUNT(*) as count FROM users "
-                "WHERE is_active = true GROUP BY role ORDER BY count DESC"
+                """SELECT r.name as role_name, COUNT(u.id) as user_count
+                FROM users u
+                JOIN roles r ON r.id = u.role_id
+                WHERE u.is_active = true
+                GROUP BY r.name
+                ORDER BY user_count DESC"""
             )
 
         elif query_type == "user_total":
@@ -928,7 +959,7 @@ def get_vendor_and_user_info(
         else:
             return f"Unknown query_type: {query_type}"
 
-        ref = make_reference("get_vendor_and_user_info", ["vendors", "users"], elapsed)
+        ref = make_reference("get_vendor_and_user_info", ["vendors", "users", "roles"], elapsed)
         label = query_type.replace('_',' ').title()
         return f"Vendor & User Info — {label}\n{'═'*80}\n{format_rows(rows)}{ref}"
 
@@ -953,10 +984,10 @@ def get_dashboard_overview() -> str:
         devices,   _ = run_query("SELECT COUNT(*) as total FROM iot_devices")
         alerts,    _ = run_query("SELECT COUNT(*) as total FROM alerts WHERE status = 'active'")
         upcoming,  _ = run_query("SELECT COUNT(*) as total FROM races WHERE race_date > NOW()")
-        users,     _ = run_query("SELECT COUNT(*) as total FROM users")
+        users,     _ = run_query("SELECT COUNT(*) as total FROM users WHERE is_active = true")
         anomalies, _ = run_query("SELECT COUNT(*) as total FROM anomaly_detections WHERE resolved = false")
-        diet_plans,_ = run_query("SELECT COUNT(*) as total FROM diet_plans")
-        training,  _ = run_query("SELECT COUNT(*) as total FROM training_logs")
+        diet_plans,_ = run_query("SELECT COUNT(*) as total FROM diet_plans WHERE status = 'active'")
+        training,  _ = run_query("SELECT COUNT(*) as total FROM training_events")
         vendors,   _ = run_query("SELECT COUNT(*) as total FROM vendors")
         elapsed = round((_time.time() - t0) * 1000, 1)
 
